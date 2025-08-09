@@ -19,6 +19,9 @@ _K.client = {
 	ready = false,
 	hotkeys = {
 		dashboard = { key = UI.state(Enum.KeyCode.Quote), mods = UI.state({}), callback = nil },
+		commands = {
+			flynoclip = { key = UI.state(Enum.KeyCode.E), mods = UI.state({}), callback = nil },
+		}
 	},
 	settings = {},
 
@@ -253,7 +256,7 @@ _K.Remote.Init.OnClientEvent:Once(function(bans, logs, members, roles, servers, 
 			end)
 		end
 	end
-
+	
 	_K.client.CommandBar = require(script:WaitForChild("CommandBar"))
 	_K.client.CommandBar:init(_K)
 	_K.client.Dashboard = require(script:WaitForChild("Dashboard")) -- relies on command bar
@@ -323,6 +326,7 @@ _K.Remote.Init.OnClientEvent:Once(function(bans, logs, members, roles, servers, 
 	_K.Hook.init:Fire()
 end)
 
+_K.client.Character:init(_K)
 _K.Remote.Init:FireServer({ Attributes = { Platform = UI.Platform, SessionStart = workspace:GetServerTimeNow() } })
 
 local lastIdle = time()
