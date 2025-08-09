@@ -2,7 +2,7 @@
 	"className": "Configuration",
 	"properties": {
 		"Attributes": {
-			"AutoUpdate": { "Bool": true },
+			"AutoUpdate": { "Bool": false },
 			"Legacy": { "Bool": false }
 		}
 	}
