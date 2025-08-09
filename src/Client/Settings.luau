@@ -339,6 +339,20 @@ function Settings.new(_K)
 					Modifiers = _K.client.hotkeys.dashboard.mods,
 				},
 			},
+			UI.new "ListItem" {
+				Text = "Fly/Noclip Hotkey",
+				Tooltip = "The keyboard shortcut to toggle fly and noclip.",
+				UI.new "Input" {
+					Font = UI.Theme.FontMono,
+					FontSize = UI.Theme.FontSize,
+					Size = inputSize,
+					Placeholder = "E",
+					HotkeyInput = true,
+					Value = UI.UserInputService:GetStringForKeyCode(_K.client.hotkeys.commands.flynoclip.key._value),
+					Hotkey = _K.client.hotkeys.commands.flynoclip.key,
+					Modifiers = _K.client.hotkeys.commands.flynoclip.mods,
+				},
+			},
 		},
 
 		themeLineItems,
