@@ -68,133 +68,118 @@ end
 
 local Character = {}
 
-local canDoubleJump, hasDoubleJumped = false, false
-local flying, flyConnection = false, nil
+function Character:init(_K)
+	local flying, flyConnection = false, nil
 
-function Character.fly(enable: boolean)
-	if enable == flying then
-		return
+	function Character.fly(enable: boolean)
+		if enable == flying then
+			return
+		end
+
+		if typeof(flyConnection) == "RBXScriptConnection" then
+			flyConnection:Disconnect()
+			flyConnection = nil
+		end
+
+		local character = LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not (humanoid and humanoid.RootPart) then
+			return
+		end
+
+		flying = enable
+
+		if flying then
+			humanoid.PlatformStand = true
+			flyAttachment.Parent = humanoid.RootPart
+			flyConnection = RunService.Heartbeat:Connect(updateFly)
+			task.defer(humanoid.ChangeState, humanoid, Enum.HumanoidStateType.Freefall)
+		else
+			flyAttachment.Parent = nil
+			linear.VectorVelocity = Vector3.zero
+			humanoid.PlatformStand = false
+			flyConnection = nil
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
 	end
 
-	if typeof(flyConnection) == "RBXScriptConnection" then
-		flyConnection:Disconnect()
-		flyConnection = nil
+	function Character.noclip(enable: boolean)
+		noclipping = enable
+		if LocalPlayer.Character then
+			noClip(LocalPlayer.Character, not enable)
+		end
 	end
 
-	local character = LocalPlayer.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not (humanoid and humanoid.RootPart) then
-		return
+	-- CONNECTIONS
+
+	local function onCharacter(character)
+		Character.fly(false)
+		Character.noclip(false)
 	end
 
-	flying = enable
-
-	if flying then
-		task.delay(1, function()
-			canDoubleJump, hasDoubleJumped = false, false
-		end)
-		humanoid.PlatformStand = true
-		flyAttachment.Parent = humanoid.RootPart
-		flyConnection = RunService.Heartbeat:Connect(updateFly)
-		task.defer(humanoid.ChangeState, humanoid, Enum.HumanoidStateType.Freefall)
-	else
-		flyAttachment.Parent = nil
-		linear.VectorVelocity = Vector3.zero
-		humanoid.PlatformStand = false
-		flyConnection = nil
-		humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	local lastJump = 0
+	local function onFlightToggle()
+		local character = LocalPlayer.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead and character:IsDescendantOf(workspace) then
+			if flying then
+				Character.noclip(false)
+				Character.fly(false)
+			else
+				local noclip = LocalPlayer:GetAttribute("_KNoClip")
+				local fly = LocalPlayer:GetAttribute("_KFly")
+				if noclip then
+					Character.noclip(if fly then true else not noclipping)
+					if not fly then
+						local status = if noclipping
+							then `<font color="#{UI.Theme.Valid._value:ToHex()}">enabled`
+							else `<font color="#{UI.Theme.Invalid._value:ToHex()}">disabled`
+						Notify({ Text = `<b>Noclip {status}</font>.</b>\tap <b>e</b> to toggle.` })
+					end
+				end
+				if fly then
+					Character.fly(true)
+				end
+			end
+		end
 	end
-end
 
-function Character.noclip(enable: boolean)
-	noclipping = enable
+	LocalPlayer:GetAttributeChangedSignal("_KFly"):Connect(function()
+		local fly = LocalPlayer:GetAttribute("_KFly")
+		local noclip = LocalPlayer:GetAttribute("_KNoClip")
+		maxSpeed = math.max(0, fly or 128)
+		Character.fly(fly)
+		if not flying and not noclip and fly then
+			Notify({
+				Text = `tap <b>e</b> to toggle fly.`,
+			})
+		end
+	end)
+
+	LocalPlayer:GetAttributeChangedSignal("_KNoClip"):Connect(function()
+		local noclip = LocalPlayer:GetAttribute("_KNoClip")
+		Character.noclip(noclip)
+		if noclip then
+			Notify({
+				Text = `tap <b>e</b> to toggle noclip.`,
+			})
+		end
+	end)
+
 	if LocalPlayer.Character then
-		noClip(LocalPlayer.Character, not enable)
+		task.spawn(onCharacter, LocalPlayer.Character)
 	end
-end
+	LocalPlayer.CharacterAdded:Connect(onCharacter)
 
--- CONNECTIONS
-
-local function onCharacter(character)
-	Character.fly(false)
-	Character.noclip(false)
-	local humanoid = character:WaitForChild("Humanoid")
-	humanoid.StateChanged:Connect(function(_old, new)
-		noClip(character)
-		if new == Enum.HumanoidStateType.Landed then
-			canDoubleJump = false
-			hasDoubleJumped = false
-		elseif new == Enum.HumanoidStateType.Freefall then
-			task.wait(0.15)
-			canDoubleJump = true
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed then
+			return
+		end
+		
+		if input.KeyCode == _K.client.hotkeys.commands.flynoclip.key._value then
+			onFlightToggle()
 		end
 	end)
 end
-
-local lastJump = 0
-local function onJumpRequest()
-	if hasDoubleJumped then
-		return
-	end
-	local character = LocalPlayer.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead and character:IsDescendantOf(workspace) then
-		local now = tick()
-		local duration = now - lastJump
-		lastJump = now
-
-		if flying then
-			if duration < 0.25 then
-				Character.noclip(false)
-				Character.fly(false)
-			end
-		elseif canDoubleJump then
-			hasDoubleJumped = true
-			local noclip = LocalPlayer:GetAttribute("_KNoClip")
-			local fly = LocalPlayer:GetAttribute("_KFly")
-			if noclip then
-				Character.noclip(if fly then true else not noclipping)
-				if not fly then
-					local status = if noclipping
-						then `<font color="#{UI.Theme.Valid._value:ToHex()}">enabled`
-						else `<font color="#{UI.Theme.Invalid._value:ToHex()}">disabled`
-					Notify({ Text = `<b>Noclip {status}</font>.</b>\nDouble tap <b>jump</b> to toggle.` })
-				end
-			end
-			if fly then
-				Character.fly(true)
-			end
-		end
-	end
-end
-
-LocalPlayer:GetAttributeChangedSignal("_KFly"):Connect(function()
-	local fly = LocalPlayer:GetAttribute("_KFly")
-	local noclip = LocalPlayer:GetAttribute("_KNoClip")
-	maxSpeed = math.max(0, fly or 128)
-	Character.fly(fly)
-	if not flying and not noclip and fly then
-		Notify({
-			Text = `Double tap <b>jump</b> to toggle fly.`,
-		})
-	end
-end)
-
-LocalPlayer:GetAttributeChangedSignal("_KNoClip"):Connect(function()
-	local noclip = LocalPlayer:GetAttribute("_KNoClip")
-	Character.noclip(noclip)
-	if noclip then
-		Notify({
-			Text = `Double tap <b>jump</b> to toggle noclip.`,
-		})
-	end
-end)
-
-if LocalPlayer.Character then
-	task.spawn(onCharacter, LocalPlayer.Character)
-end
-LocalPlayer.CharacterAdded:Connect(onCharacter)
-
-UserInputService.JumpRequest:Connect(onJumpRequest)
 
 return Character
